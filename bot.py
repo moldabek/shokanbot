@@ -6,6 +6,8 @@ from datetime import datetime
 from pymongo import MongoClient
 from config import TOKEN, MONGO
 from data.models import Session, Users
+import schedule
+
 
 FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(filename='sample.log', level=logging.ERROR, format=FORMAT)
@@ -14,30 +16,27 @@ client = MongoClient(MONGO)
 db = client.test
 users = db['users']
 keyboard1 = types.ReplyKeyboardMarkup()
-keyboard1.row('Начать день')
-keyboard2 = types.ReplyKeyboardMarkup()
-keyboard2.row('Ответить')
+keyboard2 = types.KeyboardButton('Доброе утро')
+keyboard1.add(keyboard2)
 Time = time.ctime()
 n = 0
 
 
 @bot.message_handler(commands=['start'])
 def start_message(message):
-    now = datetime.now()
+    # now = datetime.now()
     msg = bot.send_message(message.chat.id, "Привет, отправь логин")
-    point = 100
-    bot.register_next_step_handler(msg, login, now, point)
+    # point = 100
+    bot.register_next_step_handler(msg, login)
 
 
-def login(message, now, point):
+def login(message):
     postgres = Session()
-    print(now)
-    print(point)
     try:
         obj = postgres.query(Users).filter(Users.login == str(message.text)).one()
         print(obj)
         postgres.close()
-        msg = bot.send_message(message.chat.id, f'Please, enter your password {now.hour} {point}')
+        msg = bot.send_message(message.chat.id, f'Please, enter your password')
         bot.register_next_step_handler(msg, pas)
         # data = message.text.split()
         # print(data)
@@ -68,10 +67,8 @@ def pas(message):
         obj = post.query(Users).filter(Users.password == str(message.text)).one()
         print(obj)
         post.close()
-        now1 = datetime.now()
-        sec = now1.second
         msg = bot.send_message(message.chat.id, 'Good morning', reply_markup=keyboard1)
-        bot.register_next_step_handler(msg, vic, sec)
+        bot.register_next_step_handler(msg, vic)
     except Exception as e:
         logging.error(Exception)
         print(e)
@@ -80,23 +77,25 @@ def pas(message):
 
 
 def vic(message):
-    # now = datetime.now()
-    # sec = now.second
-    msg = bot.send_message(message.chat.id, "Ответьте на вопрос в течении 20 секунд\nГлубина Марианской впдадины?",
-                           reply_markup=keyboard2)
-    qwe = bot.register_next_step_handler(msg, ans)
-    print(qwe)
-
-
-def ans(message, point=100):
-    time.sleep(5)
     now = datetime.now()
-    if 6 <= now.hour <= 7:
-        time.sleep(180)
-        point -= 1
+    msg = bot.send_message(message.chat.id, "Ответьте на вопрос после 20-ти секунд\nГлубина Марианской впдадины?")
+    send = bot.send_message(message.chat.id, 'Осталось : 20')
+    for i in range(19, -1, -1):
+        time.sleep(1)
+        bot.edit_message_text(f'Осталось : {i}', message.chat.id, send.message_id)
+    bot.send_message(message.chat.id, "Жду ответа :)")
+    bot.register_next_step_handler(msg, ans)
+
+
+def ans(message):
+    bot.send_message(message.chat.id, "Ответ принят")
     answer = message.text
     print(answer)
-    print(point)
+
+
+@bot.message_handler(content_types=['photo', 'file'])
+def screenshotcheker(message):
+    bot.send_message(message.chat.id, "Thank you for using our bot")
 
 
 if __name__ == '__main__':
